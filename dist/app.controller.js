@@ -16,9 +16,11 @@ exports.AppController = void 0;
 const common_1 = require("@nestjs/common");
 const app_service_1 = require("./app.service");
 const bcrypt = require("bcrypt");
+const jwt_1 = require("@nestjs/jwt");
 let AppController = class AppController {
-    constructor(appService) {
+    constructor(appService, jwtService) {
         this.appService = appService;
+        this.jwtService = jwtService;
     }
     async register(name, email, password) {
         const hashedPassword = await bcrypt.hash(password, 12);
@@ -37,7 +39,8 @@ let AppController = class AppController {
         if (!(await bcrypt.compare(password, user.password))) {
             throw new common_1.BadRequestException('Invalid credentials!');
         }
-        return user;
+        const jwt = await this.jwtService.signAsync({ id: user.id });
+        return jwt;
     }
 };
 __decorate([
@@ -59,7 +62,8 @@ __decorate([
 ], AppController.prototype, "login", null);
 AppController = __decorate([
     (0, common_1.Controller)('api'),
-    __metadata("design:paramtypes", [app_service_1.AppService])
+    __metadata("design:paramtypes", [app_service_1.AppService,
+        jwt_1.JwtService])
 ], AppController);
 exports.AppController = AppController;
 //# sourceMappingURL=app.controller.js.map
