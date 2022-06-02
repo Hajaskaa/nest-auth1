@@ -1,7 +1,17 @@
-import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AppService } from './app.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { Request, Response } from 'express';
 
 @Controller('api')
 export class AppController {
@@ -18,17 +28,22 @@ export class AppController {
   ) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    return this.appService.create({
+    const user = await this.appService.create({
       name,
       email,
       password: hashedPassword,
     });
+
+    delete user.password;
+
+    return user;
   }
 
   @Post('login')
   async login(
     @Body('email') email: string,
     @Body('password') password: string,
+    @Res({ passthrough: true }) response: Response, //in order for the frontend to get the cookie
   ) {
     console.log({ email });
     const user = await this.appService.findUser({ where: { email } });
@@ -42,6 +57,43 @@ export class AppController {
     }
 
     const jwt = await this.jwtService.signAsync({ id: user.id });
-    return jwt;
+
+    response.cookie('jwt', jwt, { httpOnly: true });
+
+    return {
+      message: 'success',
+    };
+  }
+
+  @Get('user')
+  async user(@Req() request: Request) {
+    try {
+      const cookie = request.cookies['jwt'];
+
+      const data = await this.jwtService.verifyAsync(cookie);
+
+      if (!data) {
+        throw new UnauthorizedException();
+      }
+
+      const user = await this.appService.findUser({
+        where: { id: data['id'] },
+      });
+
+      const { password, ...result } = user;
+
+      return result;
+    } catch (e) {
+      throw new UnauthorizedException();
+    }
+  }
+
+  @Post('logout')
+  async logout(@Res({ passthrough: true }) response: Response) {
+    response.clearCookie('jwt');
+
+    return {
+      message: 'logged out',
+    };
   }
 }

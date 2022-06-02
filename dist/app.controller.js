@@ -11,6 +11,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppController = void 0;
 const common_1 = require("@nestjs/common");
@@ -24,13 +35,15 @@ let AppController = class AppController {
     }
     async register(name, email, password) {
         const hashedPassword = await bcrypt.hash(password, 12);
-        return this.appService.create({
+        const user = await this.appService.create({
             name,
             email,
             password: hashedPassword,
         });
+        delete user.password;
+        return user;
     }
-    async login(email, password) {
+    async login(email, password, response) {
         console.log({ email });
         const user = await this.appService.findUser({ where: { email } });
         if (!user) {
@@ -40,7 +53,33 @@ let AppController = class AppController {
             throw new common_1.BadRequestException('Invalid credentials!');
         }
         const jwt = await this.jwtService.signAsync({ id: user.id });
-        return jwt;
+        response.cookie('jwt', jwt, { httpOnly: true });
+        return {
+            message: 'success',
+        };
+    }
+    async user(request) {
+        try {
+            const cookie = request.cookies['jwt'];
+            const data = await this.jwtService.verifyAsync(cookie);
+            if (!data) {
+                throw new common_1.UnauthorizedException();
+            }
+            const user = await this.appService.findUser({
+                where: { id: data['id'] },
+            });
+            const { password } = user, result = __rest(user, ["password"]);
+            return result;
+        }
+        catch (e) {
+            throw new common_1.UnauthorizedException();
+        }
+    }
+    async logout(response) {
+        response.clearCookie('jwt');
+        return {
+            message: 'logged out',
+        };
     }
 };
 __decorate([
@@ -56,10 +95,25 @@ __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)('email')),
     __param(1, (0, common_1.Body)('password')),
+    __param(2, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
 ], AppController.prototype, "login", null);
+__decorate([
+    (0, common_1.Get)('user'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "user", null);
+__decorate([
+    (0, common_1.Post)('logout'),
+    __param(0, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "logout", null);
 AppController = __decorate([
     (0, common_1.Controller)('api'),
     __metadata("design:paramtypes", [app_service_1.AppService,
