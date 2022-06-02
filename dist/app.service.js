@@ -24,6 +24,9 @@ let AppService = class AppService {
     async create(data) {
         return this.userRepository.save(data);
     }
+    async findUser(condition) {
+        return this.userRepository.findOne(condition);
+    }
 };
 AppService = __decorate([
     (0, common_1.Injectable)(),

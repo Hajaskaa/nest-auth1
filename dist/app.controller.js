@@ -28,6 +28,17 @@ let AppController = class AppController {
             password: hashedPassword,
         });
     }
+    async login(email, password) {
+        console.log({ email });
+        const user = await this.appService.findUser({ where: { email } });
+        if (!user) {
+            throw new common_1.BadRequestException('Invalid credentials!');
+        }
+        if (!(await bcrypt.compare(password, user.password))) {
+            throw new common_1.BadRequestException('Invalid credentials!');
+        }
+        return user;
+    }
 };
 __decorate([
     (0, common_1.Post)('register'),
@@ -38,6 +49,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", Promise)
 ], AppController.prototype, "register", null);
+__decorate([
+    (0, common_1.Post)('login'),
+    __param(0, (0, common_1.Body)('email')),
+    __param(1, (0, common_1.Body)('password')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "login", null);
 AppController = __decorate([
     (0, common_1.Controller)('api'),
     __metadata("design:paramtypes", [app_service_1.AppService])
